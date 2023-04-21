@@ -4,8 +4,14 @@
         xmlns:local="clr-namespace:HtmlTagCounting"
         Title="Html Tag Counting" Height="450" Width="800">
     <Window.Resources>
-        <local:BoolToReverseVisibilityConverter x:Key="boolToRevVisConv" />
         <local:BoolToVisibilityConverter x:Key="boolToVisConv" />
+        <Style x:Key="DataGridCellStyle" TargetType="{x:Type DataGridCell}" >
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground"  Value="Red"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -40,12 +46,18 @@
                   Margin="10" 
                   Grid.Row="0"
                   AutoGenerateColumns="False"
-                  ScrollViewer.VerticalScrollBarVisibility="Auto">
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  SelectedItem="{Binding IsSelected}"
+                  SelectionMode="Extended"
+                  SelectionUnit="FullRow"
+                  >
                 <DataGrid.Columns>
+                    
                     <DataGridTextColumn Header="Url" 
                                     Binding="{Binding Url}"
                                     IsReadOnly="True"
-                                    Width="650"/>
+                                    Width="650"
+                                    CellStyle="{StaticResource DataGridCellStyle}"/>
                     <DataGridTextColumn Header="Count"
                                     Binding="{Binding Count}"
                                     IsReadOnly="True"
@@ -62,7 +74,7 @@
                              Value="{Binding Progress}" 
                              Visibility="{Binding IsProcessing, Converter={StaticResource boolToVisConv}}" />
             <TextBlock Grid.Row="1" Text="{Binding MaxTagUrl}" FontWeight="Bold"
-                           Visibility="{Binding IsProcessing, Converter={StaticResource boolToRevVisConv}}"
+                           Visibility="{Binding IsProcessing}"
                            VerticalAlignment="Bottom"
                            Margin="5"/>
         </StackPanel>

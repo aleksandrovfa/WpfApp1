@@ -24,6 +24,7 @@ namespace HtmlTagCounting
         {
             InitializeComponent();
             DataContext = new MainViewModel();
+            
         }
     }
 }

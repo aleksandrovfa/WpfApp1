@@ -23,6 +23,7 @@ namespace HtmlTagCounting
         private string maxTagUrl;
         private string status;
         private CancellationTokenSource cts;
+        private UrlInfo isSelected;
 
         public MainViewModel()
         {
@@ -30,7 +31,11 @@ namespace HtmlTagCounting
             progress = 0;
             maxTagUrl = "";
             status = "Ready";
-            //cts = new CancellationTokenSource();
+            string[] fileLines = File.ReadAllLines("urls.txt");
+            foreach (var item in fileLines)
+            {
+                urls.Add(new UrlInfo(item));
+            }
         }
 
         public ICommand StartCommand => new RelayCommand(async () =>
@@ -43,43 +48,23 @@ namespace HtmlTagCounting
                 MaxTagUrl = "";
                 Status = "Processing...";
 
-                // Считываем Url из файла
-                string[] fileLines = File.ReadAllLines("urls.txt");
-
                 // Создаем список задач для подсчета тегов
-                //var tasks = new List<Task<Tuple<string, int>>>();
                 var tasks = new List<Task<UrlInfo>>();
-                foreach (var url in fileLines)
+                foreach (var url in urls)
                 {
                     var task = Task.Run(() =>
                     {
                         // Загружаем html страницу и считаем теги <a>
-                        int tagCount = LoadAndCountTag(url, cts.Token);
-                        Progress = progress + 100/fileLines.Length;
-                        //return Tuple.Create(url, tagCount);
-                        return new UrlInfo(url, tagCount);
+                        url.Count = LoadAndCountTag(url.Url, cts.Token);
+                        Progress = progress + 100/urls.Count;
+                        return url;
                     });
                     tasks.Add(task);
                 }
 
                 // Ожидаем выполнения всех задач
                 var results = await Task.WhenAll(tasks);
-
-                // Обновляем список Url и выделяем наиболее часто встречающийся Url
-                urls.Clear();
-                int maxTagCount = 0;
-                foreach (var result in results)
-                {
-                    urls.Add(result);
-                    if (result.Count > maxTagCount)
-                    {
-                        maxTagCount = result.Count;
-                        maxTagUrl = result.Url;
-                    }
-                }
                 Status = "Completed";
-                NotifyPropertyChanged(nameof(Urls));
-                NotifyPropertyChanged(nameof(MaxTagUrl));
             }
             catch (OperationCanceledException)
             {
@@ -91,7 +76,20 @@ namespace HtmlTagCounting
             }
             finally
             {
+                // Обновляем список Url и выделяем наиболее часто встречающийся Url
                 IsProcessing = false;
+                int maxTagCount = 0;
+                foreach (var result in urls)
+                {
+                    if (result.Count > maxTagCount)
+                    {
+                        maxTagCount = result.Count;
+                        maxTagUrl = result.Url;
+                        IsSelected = result;
+                    }
+                }
+                NotifyPropertyChanged(nameof(Urls));
+                NotifyPropertyChanged(nameof(MaxTagUrl));
             }
         });
 
@@ -108,6 +106,12 @@ namespace HtmlTagCounting
         {
             get { return urls; }
             set { urls = value; NotifyPropertyChanged(nameof(Urls)); }
+        }
+
+        public UrlInfo IsSelected
+        {
+            get { return isSelected; }
+            set { isSelected = value; NotifyPropertyChanged(nameof(IsSelected)); }
         }
 
         public int Progress
@@ -160,7 +164,6 @@ namespace HtmlTagCounting
                     HtmlDocument doc = new HtmlDocument();
                     doc.LoadHtml(html);
                     int tagCount = doc.DocumentNode.Descendants("a").Count();
-                    //Progress++ Convert.ToInt16(100/url.Count());
                     return tagCount;
                 }
             }
@@ -171,14 +174,14 @@ namespace HtmlTagCounting
                     var response = ex.Response as HttpWebResponse;
                     if (response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        throw new Exception($"Url {url} not found.");
+                        throw new Exception($"Url {url} не найден.");
                     }
                 }
-                throw new Exception($"Error while downloading html from {url}.", ex);
+                throw new Exception($"Ошибка при загрузке html {url}.", ex);
             }
             catch (Exception ex)
             {
-                throw new Exception($"Error while counting tags on {url}.", ex);
+                throw new Exception($"Ошибка при подсчете тегов {url}.", ex);
             }
             finally
             {
@@ -187,16 +190,6 @@ namespace HtmlTagCounting
             }
         }
 
-        public class UrlInfo
-        {
-            public string Url { get; set; }
-            public int Count { get; set; }
-
-            public UrlInfo(string url, int count)
-            {
-                Url = url;
-                Count = count;
-            }
-        }
+      
     }
 }
